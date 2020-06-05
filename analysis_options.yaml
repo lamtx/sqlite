@@ -1,0 +1,16 @@
+include: package:pedantic/analysis_options.yaml
+
+# Copyright 2017 The Fuchsia Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Root analysis options shared among all Dart code in the respository. Based
+# on the Fuchsia standard analysis options, with some changes.
+linter:
+  # Full list available at http://dart-lang.github.io/linter/lints/options/options.html.
+  rules:
+
+analyzer:
+  strong-mode:
+    implicit-casts: true
+    implicit-dynamic: true
