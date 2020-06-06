@@ -1,5 +1,5 @@
 name: sqlite
-version: 0.0.1
+version: 1.0.0
 description: >-
   Sqlite3 wrapper. Demo for dart:ffi.
 author: Daco Harkes <dacoharkes@google.com>, Samir Jindel <sjindel@google.com>
