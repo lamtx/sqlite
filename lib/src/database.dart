@@ -18,7 +18,7 @@ import "bindings/types.dart" hide Database;
 ///
 /// This database interacts with SQLite synchonously.
 class Database {
-  Pointer<types.Database> _database;
+  late Pointer<types.Database> _database;
   bool _open = false;
 
   /// Open a database located at the file [path].
@@ -60,7 +60,7 @@ class Database {
   }
 
   /// Execute a query, discarding any returned rows.
-  int execute(String query,[List<Object> args, bool returnsRowId = false]) {
+  int execute(String query,[List<Object?>? args, bool returnsRowId = false]) {
     Pointer<Pointer<Statement>> statementOut = allocate();
     Pointer<Utf8> queryC = Utf8.toUtf8(query);
     int resultCode = bindings.sqlite3_prepare_v2(
@@ -96,7 +96,7 @@ class Database {
     return result;
   }
 
-  List<Pointer<NativeType>> _bindArgs(List<Object> args, Pointer<types.Statement> statement) {
+  List<Pointer<NativeType>> _bindArgs(List<Object?>? args, Pointer<types.Statement> statement) {
     final allocatedObjects = <Pointer>[];
     if (args != null) {
       var i = 0;
@@ -127,7 +127,7 @@ class Database {
   }
 
   /// Evaluate a query and return the resulting rows as an iterable.
-  Result query(String query, [List<Object> args]) {
+  Result query(String query, [List<Object?>? args]) {
     Pointer<Pointer<Statement>> statementOut = allocate();
     Pointer<Utf8> queryC = Utf8.toUtf8(query);
     int resultCode = bindings.sqlite3_prepare_v2(
@@ -155,7 +155,7 @@ class Database {
     return Result._(statement, columnIndices, allocatedObjects);
   }
 
-  SQLiteException _loadError([int errorCode]) {
+  SQLiteException _loadError([int? errorCode]) {
     String errorMessage = bindings.sqlite3_errmsg(_database).ref.toString();
     if (errorCode == null) {
       return SQLiteException(errorMessage);
@@ -191,7 +191,7 @@ class _ResultIterator {
   final Pointer<Statement> _statement;
   final Map<String, int> _columnIndices;
   final List<Pointer<NativeType>> _boundArgs;
-  Row _currentRow = null;
+  Row? _currentRow = null;
   bool _closed = false;
 
   _ResultIterator(this._statement, this._columnIndices, this._boundArgs) {}
@@ -214,7 +214,7 @@ class _ResultIterator {
     if (_closed) {
       throw SQLiteException("The result has already been closed.");
     }
-    return _currentRow;
+    return _currentRow ?? (throw StateError("No elements"));
   }
 
   void close() {
@@ -236,11 +236,11 @@ class Row {
   Row._(this._statement, this._columnIndices) {}
 
   /// Get column index by name
-  int getColumnIndex(String columnName) => _columnIndices[columnName];
+  int? getColumnIndex(String columnName) => _columnIndices[columnName];
 
   /// Reads column [columnIndex] and converts to [Type.Integer] if not an
   /// integer.
-  int readColumnByIndexAsInt(int columnIndex) {
+  int? readColumnByIndexAsInt(int columnIndex) {
     _checkIsCurrentRow();
     final value =  bindings.sqlite3_column_int64(_statement, columnIndex);
     if (value == 0 && _checkIsNull(columnIndex)) {
@@ -251,7 +251,7 @@ class Row {
 
   /// Reads column [columnIndex] and converts to [Type.Float] if not an
   /// integer.
-  double readColumnByIndexAsDouble(int columnIndex) {
+  double? readColumnByIndexAsDouble(int columnIndex) {
     _checkIsCurrentRow();
     final value = bindings.sqlite3_column_double(_statement, columnIndex);
     if (value == 0.0 && _checkIsNull(columnIndex)) {
@@ -261,7 +261,7 @@ class Row {
   }
 
   /// Reads column [columnIndex] and converts to [Type.Text] if not text.
-  String readColumnByIndexAsText(int columnIndex) {
+  String? readColumnByIndexAsText(int columnIndex) {
     _checkIsCurrentRow();
     final str = bindings.sqlite3_column_text(_statement, columnIndex);
     if (str == nullptr) {
@@ -271,7 +271,7 @@ class Row {
   }
 
   /// Reads column [columnIndex] and converts to [Type.Text] if not text.
-  Uint8List readColumnByIndexAsBlob(int columnIndex) {
+  Uint8List? readColumnByIndexAsBlob(int columnIndex) {
     _checkIsCurrentRow();
     final pointer = bindings.sqlite3_column_blob(_statement, columnIndex);
     if (pointer == nullptr) {

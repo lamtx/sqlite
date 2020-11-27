@@ -22,7 +22,7 @@ abstract class SqliteOpenHelper {
       int theirVersion;
       try {
         if (query.moveNext()) {
-          theirVersion = query.current.readColumnByIndexAsInt(0);
+          theirVersion = query.current.readColumnByIndexAsInt(0) ?? 0;
         } else {
           theirVersion = 0;
         }
@@ -40,7 +40,7 @@ abstract class SqliteOpenHelper {
     }
   }
 
-  Database _database;
+  late Database _database;
   final int version;
 
   Database get database => _database;
@@ -54,7 +54,7 @@ abstract class SqliteOpenHelper {
         "Unsupported downgrade database from $newVersion to $oldVersion");
   }
 
-  static String _joinPath(String path, String fileName) {
+  static String _joinPath(String? path, String fileName) {
     if (path == null || path.isEmpty) {
       return fileName;
     }

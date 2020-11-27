@@ -5,7 +5,7 @@
 import 'dart:ffi';
 import 'dart:io' show Platform;
 
-String _platformPath(String name, {String path}) {
+String _platformPath(String name, {String? path}) {
   if (path == null) path = "";
   if (Platform.isLinux || Platform.isAndroid)
     return path + "lib" + name + ".so";
@@ -14,7 +14,7 @@ String _platformPath(String name, {String path}) {
   throw Exception("Platform not implemented");
 }
 
-DynamicLibrary dlopenPlatformSpecific(String name, {String path}) {
+DynamicLibrary dlopenPlatformSpecific(String name, {String? path}) {
   if (Platform.isIOS) {
     return DynamicLibrary.process();
   }

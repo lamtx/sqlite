@@ -40,19 +40,23 @@ T scoped<T extends Pointer>(T ptr) => Arena.current().scoped(ptr);
 class RethrownError {
   dynamic original;
   StackTrace originalStackTrace;
+
   RethrownError(this.original, this.originalStackTrace);
+
   toString() => """RethrownError(${original})
 ${originalStackTrace}""";
 }
 
 /// Runs the [body] in an [Arena] freeing all memory which is [scoped] during
 /// execution of [body] at the end of the execution.
-R runArena<R>(R Function(Arena) body) {
+R? runArena<R>(R Function(Arena) body) {
   Arena arena = Arena();
   try {
-    return runZoned(() => body(arena),
-        zoneValues: {#_currentArena: arena},
-        onError: (error, st) => throw RethrownError(error, st));
+    return runZonedGuarded(
+      () => body(arena),
+      (error, st) => throw RethrownError(error, st),
+      zoneValues: {#_currentArena: arena},
+    );
   } finally {
     arena.finalize();
   }

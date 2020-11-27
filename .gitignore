@@ -5,3 +5,4 @@
 pubspec.lock
 test.db
 test.db-journal
+.idea/
