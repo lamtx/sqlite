@@ -3,6 +3,7 @@ version: 1.0.0
 description: >-
   Sqlite3 wrapper. Demo for dart:ffi.
 author: Daco Harkes <dacoharkes@google.com>, Samir Jindel <sjindel@google.com>
+publish_to: 'none'
 
 environment:
   sdk: ^2.12.0-0
