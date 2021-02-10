@@ -309,19 +309,11 @@ class _SQLiteBindings {
   final int Function(Pointer<Statement> statement, int paramIndex, int value)
       sqlite3_bind_int64;
 
-  final int Function(
-      Pointer<Statement> statement,
-      int paramIndex,
-      Pointer<Utf8> value,
-      int len,
-      Pointer<NativeFunction<Function>> callback) sqlite3_bind_text;
+  final int Function(Pointer<Statement> statement, int paramIndex,
+      Pointer<Utf8> value, int len, Pointer<Void> callback) sqlite3_bind_text;
 
-  final int Function(
-      Pointer<Statement> statement,
-      int paramIndex,
-      Pointer<Uint8> value,
-      int len,
-      Pointer<NativeFunction<Function>> callback) sqlite3_bind_blob;
+  final int Function(Pointer<Statement> statement, int paramIndex,
+      Pointer<Uint8> value, int len, Pointer<Void> callback) sqlite3_bind_blob;
 
   final int Function(Pointer<Statement> statement, int paramIndex)
       sqlite3_bind_null;

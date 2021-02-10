@@ -24,7 +24,7 @@ class Arena {
   /// Frees all memory pointed to by [Pointer]s in this arena.
   void finalize() {
     for (final ptr in _allocations) {
-      free(ptr);
+      calloc.free(ptr);
     }
   }
 

@@ -24,13 +24,13 @@ class Database {
   /// Open a database located at the file [path].
   Database(String path,
       [int flags = Flags.SQLITE_OPEN_READWRITE | Flags.SQLITE_OPEN_CREATE]) {
-    Pointer<Pointer<types.Database>> dbOut = allocate();
+    Pointer<Pointer<types.Database>> dbOut = calloc();
     final pathC = Utf8.toUtf8(path);
     final int resultCode =
         bindings.sqlite3_open_v2(pathC, dbOut, flags, nullptr);
     _database = dbOut.value;
-    free(dbOut);
-    free(pathC);
+    calloc.free(dbOut);
+    calloc.free(pathC);
 
     if (resultCode == Errors.SQLITE_OK) {
       _open = true;
@@ -60,8 +60,8 @@ class Database {
   }
 
   /// Execute a query, discarding any returned rows.
-  int execute(String query,[List<Object?>? args, bool returnsRowId = false]) {
-    Pointer<Pointer<Statement>> statementOut = allocate();
+  int execute(String query, [List<Object?>? args, bool returnsRowId = false]) {
+    Pointer<Pointer<Statement>> statementOut = calloc();
     Pointer<Utf8> queryC = Utf8.toUtf8(query);
     int resultCode = bindings.sqlite3_prepare_v2(
         _database, queryC, -1, statementOut, nullptr);
@@ -69,20 +69,20 @@ class Database {
 
     final allocatedObjects = _bindArgs(args, statement);
 
-    free(statementOut);
-    free(queryC);
+    calloc.free(statementOut);
+    calloc.free(queryC);
 
     while (resultCode == Errors.SQLITE_ROW || resultCode == Errors.SQLITE_OK) {
       resultCode = bindings.sqlite3_step(statement);
     }
 
-    for(final object in allocatedObjects) {
-      free(object);
+    for (final object in allocatedObjects) {
+      calloc.free(object);
     }
 
     int result = 0;
     if (returnsRowId) {
-        result = bindings.sqlite3_last_insert_rowid(_database);
+      result = bindings.sqlite3_last_insert_rowid(_database);
     }
 
     if (allocatedObjects.isNotEmpty) {
@@ -96,11 +96,12 @@ class Database {
     return result;
   }
 
-  List<Pointer<NativeType>> _bindArgs(List<Object?>? args, Pointer<types.Statement> statement) {
+  List<Pointer<NativeType>> _bindArgs(
+      List<Object?>? args, Pointer<types.Statement> statement) {
     final allocatedObjects = <Pointer>[];
     if (args != null) {
       var i = 0;
-      for(final arg in args) {
+      for (final arg in args) {
         i += 1;
         if (arg == null) {
           bindings.sqlite3_bind_null(statement, i);
@@ -113,13 +114,14 @@ class Database {
           allocatedObjects.add(s);
           bindings.sqlite3_bind_text(statement, i, s, -1, nullptr);
         } else if (arg is Uint8List) {
-          Pointer<Uint8> str = allocate<Uint8>(count: arg.length);
+          Pointer<Uint8> str = calloc.allocate<Uint8>(arg.length);
           final Uint8List nativeString = str.asTypedList(arg.length);
           nativeString.setAll(0, arg);
           allocatedObjects.add(str);
           bindings.sqlite3_bind_blob(statement, i, str, arg.length, nullptr);
         } else {
-          throw UnsupportedError("Unsupported type ${arg.runtimeType} to insert to Sqlite");
+          throw UnsupportedError(
+              "Unsupported type ${arg.runtimeType} to insert to Sqlite");
         }
       }
     }
@@ -128,7 +130,7 @@ class Database {
 
   /// Evaluate a query and return the resulting rows as an iterable.
   Result query(String query, [List<Object?>? args]) {
-    Pointer<Pointer<Statement>> statementOut = allocate();
+    Pointer<Pointer<Statement>> statementOut = calloc();
     Pointer<Utf8> queryC = Utf8.toUtf8(query);
     int resultCode = bindings.sqlite3_prepare_v2(
         _database, queryC, -1, statementOut, nullptr);
@@ -136,8 +138,8 @@ class Database {
 
     final allocatedObjects = _bindArgs(args, statement);
 
-    free(statementOut);
-    free(queryC);
+    calloc.free(statementOut);
+    calloc.free(queryC);
 
     if (resultCode != Errors.SQLITE_OK) {
       bindings.sqlite3_finalize(statement);
@@ -148,7 +150,7 @@ class Database {
     int columnCount = bindings.sqlite3_column_count(statement);
     for (int i = 0; i < columnCount; i++) {
       String columnName =
-          bindings.sqlite3_column_name(statement, i).ref.toString();
+          Utf8.fromUtf8(bindings.sqlite3_column_name(statement, i));
       columnIndices[columnName] = i;
     }
 
@@ -156,12 +158,12 @@ class Database {
   }
 
   SQLiteException _loadError([int? errorCode]) {
-    String errorMessage = bindings.sqlite3_errmsg(_database).ref.toString();
+    String errorMessage = Utf8.fromUtf8(bindings.sqlite3_errmsg(_database));
     if (errorCode == null) {
       return SQLiteException(errorMessage);
     }
     String errorCodeExplanation =
-        bindings.sqlite3_errstr(errorCode).ref.toString();
+        Utf8.fromUtf8(bindings.sqlite3_errstr(errorCode));
     return SQLiteException(
         "$errorMessage (Code $errorCode: $errorCodeExplanation)");
   }
@@ -175,10 +177,9 @@ class Database {
 class Result {
   final _ResultIterator _iterator;
 
-  Result._(Pointer<Statement> _statement,
-      Map<String, int> _columnIndices,
-    List<Pointer<NativeType>> boundArgs
-  ) : _iterator = _ResultIterator(_statement, _columnIndices, boundArgs) {}
+  Result._(Pointer<Statement> _statement, Map<String, int> _columnIndices,
+      List<Pointer<NativeType>> boundArgs)
+      : _iterator = _ResultIterator(_statement, _columnIndices, boundArgs) {}
 
   void close() => _iterator.close();
 
@@ -221,8 +222,8 @@ class _ResultIterator {
     _currentRow?._setNotCurrent();
     _closed = true;
     bindings.sqlite3_finalize(_statement);
-    for(final arg in _boundArgs) {
-      free(arg);
+    for (final arg in _boundArgs) {
+      calloc.free(arg);
     }
   }
 }
@@ -242,7 +243,7 @@ class Row {
   /// integer.
   int? readColumnByIndexAsInt(int columnIndex) {
     _checkIsCurrentRow();
-    final value =  bindings.sqlite3_column_int64(_statement, columnIndex);
+    final value = bindings.sqlite3_column_int64(_statement, columnIndex);
     if (value == 0 && _checkIsNull(columnIndex)) {
       return null;
     }
@@ -267,7 +268,7 @@ class Row {
     if (str == nullptr) {
       return null;
     }
-    return str.ref.toString();
+    return   Utf8.fromUtf8(str);
   }
 
   /// Reads column [columnIndex] and converts to [Type.Text] if not text.
@@ -300,17 +301,18 @@ class Row {
 }
 
 class Type {
-    static const Integer = 1;
-    static const Float = 2;
-    static const Text = 3;
-    static const Blob = 4;
-    static const Null = 5;
+  static const Integer = 1;
+  static const Float = 2;
+  static const Text = 3;
+  static const Blob = 4;
+  static const Null = 5;
 }
 
 enum Convert { DynamicType, StaticType }
 
 class SQLiteException implements Exception {
   final String message;
+
   SQLiteException(this.message);
 
   String toString() => message;
