@@ -1,18 +1,13 @@
 name: sqlite
 version: 1.0.0
-description: >-
-  Sqlite3 wrapper. Demo for dart:ffi.
-author: Daco Harkes <dacoharkes@google.com>, Samir Jindel <sjindel@google.com>
+description: Sqlite3 wrapper. Demo for dart:ffi.
 publish_to: 'none'
 
 environment:
-  sdk: ^2.12.0-0
+  sdk: ^2.17.0
 
 dependencies:
-  flutter:
-    sdk: flutter
-  ffi: ^1.0.0
+  ffi: ^2.0.0
+
 dev_dependencies:
   test: ^1.5.3
-  flutter_test:
-    sdk: flutter
