@@ -54,7 +54,7 @@ Sqlite3_prepare_v2_t sqlite3_prepare_v2 = sqlite
     .asFunction();
 ```
 
-Browse the code: [platform specific dynamic library loading](../lib/src/ffi/dylib_utils.dart), [C signatures](../lib/src/bindings/signatures.dart), [Dart signatures and bindings](../lib/src/bindings/bindings.dart), and [dart:ffi dynamic library interface](../../../../sdk/lib/ffi/dynamic_library.dart).
+Browse the code: [platform specific dynamic library loading](../lib/src/ffi/open_dynamic_library.dart), [C signatures](../lib/src/bindings/signatures.dart), [Dart signatures and bindings](../lib/src/bindings/bindings.dart), and [dart:ffi dynamic library interface](../../../../sdk/lib/ffi/dynamic_library.dart).
 
 ## Managing C Memory
 

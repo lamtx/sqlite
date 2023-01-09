@@ -9,5 +9,6 @@ library sqlite;
 
 export 'src/bindings/constants.dart';
 export "src/database.dart" show Database, SQLiteException, Result, Row;
-export 'src/sqlite_open_helper.dart';
+export 'src/ffi/open_dynamic_library.dart';
 export 'src/sqlite_config.dart';
+export 'src/sqlite_open_helper.dart';
