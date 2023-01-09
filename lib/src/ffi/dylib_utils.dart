@@ -5,19 +5,24 @@
 import 'dart:ffi';
 import 'dart:io' show Platform;
 
-String _platformPath(String name, {String? path}) {
-  if (path == null) path = "";
-  if (Platform.isLinux || Platform.isAndroid)
-    return path + "lib" + name + ".so";
-  if (Platform.isMacOS) return path + "lib" + name + ".dylib";
-  if (Platform.isWindows) return path + name + ".dll";
-  throw Exception("Platform not implemented");
-}
-
-DynamicLibrary dlopenPlatformSpecific(String name, {String? path}) {
+/// Open the embedded library which is provided by
+/// [this dependency](https://github.com/lamtx/sqlite3_lib)
+DynamicLibrary dlopenPlatformSpecific() {
   if (Platform.isIOS) {
     return DynamicLibrary.process();
   }
-  String fullPath = _platformPath(name, path: path);
-  return DynamicLibrary.open(fullPath);
+  final String name;
+  if (Platform.isAndroid) {
+    name = "libsqliteX.so";
+  } else if (Platform.isWindows) {
+    name = "sqlite.dll";
+  } else if (Platform.isMacOS) {
+    name = "libsqlite.dylib";
+  } else if (Platform.isLinux) {
+    name = "libsqlite3.so";
+  } else {
+    throw UnsupportedError(
+        "SQLite is not available on ${Platform.operatingSystem}");
+  }
+  return DynamicLibrary.open(name);
 }

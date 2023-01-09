@@ -3,7 +3,6 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import "dart:ffi";
-import "dart:io";
 
 import "package:ffi/ffi.dart";
 
@@ -472,5 +471,5 @@ class _SQLiteBindings {
 _SQLiteBindings? _cachedBindings;
 
 _SQLiteBindings get bindings => _cachedBindings ??= _SQLiteBindings(
-      dlopenPlatformSpecific(Platform.isAndroid ? "sqliteX" : "sqlite3"),
+      dlopenPlatformSpecific(),
     );
