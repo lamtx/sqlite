@@ -6,7 +6,7 @@ import "dart:ffi";
 
 import "package:ffi/ffi.dart";
 
-import "../ffi/dylib_utils.dart";
+import "../ffi/open_dynamic_library.dart";
 import "signatures.dart";
 import "types.dart";
 
@@ -471,5 +471,5 @@ class _SQLiteBindings {
 _SQLiteBindings? _cachedBindings;
 
 _SQLiteBindings get bindings => _cachedBindings ??= _SQLiteBindings(
-      dlopenPlatformSpecific(),
+      open.openSqlite(),
     );
