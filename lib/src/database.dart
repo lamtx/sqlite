@@ -17,7 +17,7 @@ import "bindings/types.dart" hide Database;
 /// All functions against a database may throw [SQLiteError].
 ///
 /// This database interacts with SQLite synchonously.
-class Database {
+final class Database {
   late Pointer<types.Database> _database;
   bool _open = false;
 

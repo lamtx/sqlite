@@ -10,7 +10,7 @@ import 'package:ffi/ffi.dart';
 /// [Arena] manages allocated C memory.
 ///
 /// Arenas are zoned.
-class Arena {
+final class Arena {
   Arena();
 
   List<Pointer<Void>> _allocations = [];

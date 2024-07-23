@@ -1,4 +1,4 @@
-class SqliteConfig {
+final class SqliteConfig {
   const SqliteConfig({this.documentPath});
 
   final String? documentPath;

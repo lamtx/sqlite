@@ -4,7 +4,7 @@ import 'package:sqlite/src/sqlite_config.dart';
 
 import 'database.dart';
 
-abstract class SqliteOpenHelper {
+abstract base class SqliteOpenHelper {
   SqliteOpenHelper(
     String name,
     this.version, {
@@ -52,6 +52,10 @@ abstract class SqliteOpenHelper {
   void onDowngrade(Database db, int oldVersion, int newVersion) {
     throw UnsupportedError(
         "Unsupported downgrade database from $newVersion to $oldVersion");
+  }
+
+  void close() {
+    _database.close();
   }
 
   static String _joinPath(String? path, String fileName) {
