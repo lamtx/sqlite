@@ -5,15 +5,23 @@ import 'package:sqlite/src/sqlite_config.dart';
 import 'database.dart';
 
 abstract base class SqliteOpenHelper {
-  SqliteOpenHelper(
-    String name,
-    this.version, {
-    SqliteConfig config = SqliteConfig.builtin,
-  }) {
-    final path = _joinPath(config.documentPath, name);
-    final file = File(path);
+  SqliteOpenHelper(String name,
+      this.version, {
+        SqliteConfig config = SqliteConfig.builtin,
+      }) : _path = _joinPath(config.documentPath, name) {
+    _initialize();
+  }
+
+  late Database _database;
+  final int version;
+  final String _path;
+
+  Database get database => _database;
+
+  void _initialize() {
+    final file = File(_path);
     final existed = file.existsSync();
-    _database = Database(path);
+    _database = Database(_path);
     if (!existed) {
       onCreate(_database);
       _database.execute("PRAGMA user_version = $version");
@@ -40,11 +48,6 @@ abstract base class SqliteOpenHelper {
     }
   }
 
-  late Database _database;
-  final int version;
-
-  Database get database => _database;
-
   void onCreate(Database db);
 
   void onUpgrade(Database db, int oldVersion, int newVersion);
@@ -57,6 +60,14 @@ abstract base class SqliteOpenHelper {
   void close() {
     _database.close();
   }
+
+  Future<void> restore(File databaseFile) async {
+    close();
+    await databaseFile.copy(_path);
+    _initialize();
+  }
+
+  File get databaseFile => File(_path);
 
   static String _joinPath(String? path, String fileName) {
     if (path == null || path.isEmpty) {
