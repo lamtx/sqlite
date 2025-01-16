@@ -39,7 +39,6 @@ final class Database {
       // can just destroy it.
       SQLiteException exception = _loadError(resultCode);
       bindings.sqlite3_close_v2(_database);
-      //close();
       throw exception;
     }
   }
@@ -59,92 +58,121 @@ final class Database {
     }
   }
 
-  /// Execute a query, discarding any returned rows.
-  int execute(String query, [List<Object?>? args, bool returnsRowId = false]) {
+  Pointer<Statement> prepare(String statement) {
     Pointer<Pointer<Statement>> statementOut = calloc();
-    Pointer<Utf8> queryC = query.toNativeUtf8();
+    Pointer<Utf8> queryC = statement.toNativeUtf8();
     int resultCode = bindings.sqlite3_prepare_v2(
         _database, queryC, -1, statementOut, nullptr);
-    Pointer<Statement> statement = statementOut.value;
-
-    final allocatedObjects = _bindArgs(args, statement);
-
-    calloc.free(statementOut);
     calloc.free(queryC);
 
-    while (resultCode == Errors.SQLITE_ROW || resultCode == Errors.SQLITE_OK) {
-      resultCode = bindings.sqlite3_step(statement);
+    if (resultCode != Errors.SQLITE_OK) {
+      final e = _loadError(resultCode);
+      calloc.free(statementOut);
+      calloc.free(queryC);
+      throw e;
     }
+    return statementOut.value;
+  }
 
-    for (final object in allocatedObjects) {
-      calloc.free(object);
-    }
-
-    int result = 0;
-    if (returnsRowId) {
-      result = bindings.sqlite3_last_insert_rowid(_database);
-    }
-
-    if (allocatedObjects.isNotEmpty) {
-      bindings.sqlite3_clear_bindings(statement);
-    }
+  void freeStatement(Pointer<Statement> statement) {
     bindings.sqlite3_finalize(statement);
+    calloc.free(statement);
+  }
+
+  int executeStatement(Pointer<Statement> statement,
+      [List<Object?>? args, bool returnsRowId = false]) {
+    final allocatedObjects = args == null ? null : _bindArgs(statement, args);
+
+    int resultCode;
+    do {
+      resultCode = bindings.sqlite3_step(statement);
+    } while (resultCode == Errors.SQLITE_ROW || resultCode == Errors.SQLITE_OK);
+
+    final insertedRowId =
+        returnsRowId ? bindings.sqlite3_last_insert_rowid(_database) : 0;
+
+    if (allocatedObjects != null) {
+      _freeArgs(statement, allocatedObjects);
+    }
 
     if (resultCode != Errors.SQLITE_DONE) {
       throw _loadError(resultCode);
     }
-    return result;
+    return insertedRowId;
+  }
+
+  /// Execute a query, discarding any returned rows.
+  int execute(String query, [List<Object?>? args, bool returnsRowId = false]) {
+    final statement = prepare(query);
+    final allocatedObjects = args == null ? null : _bindArgs(statement, args);
+
+    int resultCode;
+    do {
+      resultCode = bindings.sqlite3_step(statement);
+    } while (resultCode == Errors.SQLITE_ROW || resultCode == Errors.SQLITE_OK);
+
+    final insertedRowId =
+        returnsRowId ? bindings.sqlite3_last_insert_rowid(_database) : 0;
+
+    if (allocatedObjects != null) {
+      _freeArgs(statement, allocatedObjects);
+    }
+    freeStatement(statement);
+
+    if (resultCode != Errors.SQLITE_DONE) {
+      throw _loadError(resultCode);
+    }
+    return insertedRowId;
   }
 
   List<Pointer<NativeType>> _bindArgs(
-      List<Object?>? args, Pointer<types.Statement> statement) {
+    Pointer<types.Statement> statement,
+    List<Object?> args,
+  ) {
     final allocatedObjects = <Pointer>[];
-    if (args != null) {
-      var i = 0;
-      for (final arg in args) {
-        i += 1;
-        if (arg == null) {
-          bindings.sqlite3_bind_null(statement, i);
-        } else if (arg is int) {
-          bindings.sqlite3_bind_int64(statement, i, arg);
-        } else if (arg is double) {
-          bindings.sqlite3_bind_double(statement, i, arg);
-        } else if (arg is String) {
-          final s = arg.toNativeUtf8();
-          allocatedObjects.add(s);
-          bindings.sqlite3_bind_text(statement, i, s, -1, nullptr);
-        } else if (arg is Uint8List) {
-          Pointer<Uint8> str = calloc.allocate<Uint8>(arg.length);
-          final Uint8List nativeString = str.asTypedList(arg.length);
-          nativeString.setAll(0, arg);
-          allocatedObjects.add(str);
-          bindings.sqlite3_bind_blob(statement, i, str, arg.length, nullptr);
-        } else {
-          throw UnsupportedError(
-              "Unsupported type ${arg.runtimeType} to insert to Sqlite");
-        }
+    var i = 0;
+    for (final arg in args) {
+      i += 1;
+      if (arg == null) {
+        bindings.sqlite3_bind_null(statement, i);
+      } else if (arg is int) {
+        bindings.sqlite3_bind_int64(statement, i, arg);
+      } else if (arg is double) {
+        bindings.sqlite3_bind_double(statement, i, arg);
+      } else if (arg is String) {
+        final s = arg.toNativeUtf8();
+        allocatedObjects.add(s);
+        bindings.sqlite3_bind_text(statement, i, s, -1, nullptr);
+      } else if (arg is Uint8List) {
+        Pointer<Uint8> str = calloc.allocate<Uint8>(arg.length);
+        final Uint8List nativeString = str.asTypedList(arg.length);
+        nativeString.setAll(0, arg);
+        allocatedObjects.add(str);
+        bindings.sqlite3_bind_blob(statement, i, str, arg.length, nullptr);
+      } else {
+        throw UnsupportedError(
+            "Unsupported type ${arg.runtimeType} to insert to Sqlite");
       }
     }
     return allocatedObjects;
   }
 
+  void _freeArgs(Pointer<Statement> statement, List<Pointer<NativeType>> args) {
+    if (args.isNotEmpty) {
+      bindings.sqlite3_clear_bindings(statement);
+    }
+    for (final object in args) {
+      calloc.free(object);
+    }
+  }
+
   /// Evaluate a query and return the resulting rows as an iterable.
   Result query(String query, [List<Object?>? args]) {
-    Pointer<Pointer<Statement>> statementOut = calloc();
-    Pointer<Utf8> queryC = query.toNativeUtf8();
-    int resultCode = bindings.sqlite3_prepare_v2(
-        _database, queryC, -1, statementOut, nullptr);
-    Pointer<Statement> statement = statementOut.value;
+    final statement = prepare(query);
 
-    final allocatedObjects = _bindArgs(args, statement);
+    final allocatedObjects = args == null ? null : _bindArgs(statement, args);
 
-    calloc.free(statementOut);
-    calloc.free(queryC);
-
-    if (resultCode != Errors.SQLITE_OK) {
-      bindings.sqlite3_finalize(statement);
-      throw _loadError(resultCode);
-    }
+    freeStatement(statement);
 
     Map<String, int> columnIndices = {};
     int columnCount = bindings.sqlite3_column_count(statement);
@@ -174,11 +202,11 @@ final class Database {
 ///
 /// Please note that this iterator should be [close]d manually if not all [Row]s
 /// are consumed.
-class Result {
+final class Result {
   final _ResultIterator _iterator;
 
   Result._(Pointer<Statement> _statement, Map<String, int> _columnIndices,
-      List<Pointer<NativeType>> boundArgs)
+      List<Pointer<NativeType>>? boundArgs)
       : _iterator = _ResultIterator(_statement, _columnIndices, boundArgs) {}
 
   void close() => _iterator.close();
@@ -188,10 +216,10 @@ class Result {
   Row get current => _iterator.current;
 }
 
-class _ResultIterator {
+final class _ResultIterator {
   final Pointer<Statement> _statement;
   final Map<String, int> _columnIndices;
-  final List<Pointer<NativeType>> _boundArgs;
+  final List<Pointer<NativeType>>? _boundArgs;
   Row? _currentRow = null;
   bool _closed = false;
 
@@ -222,13 +250,15 @@ class _ResultIterator {
     _currentRow?._setNotCurrent();
     _closed = true;
     bindings.sqlite3_finalize(_statement);
-    for (final arg in _boundArgs) {
-      calloc.free(arg);
+    if (_boundArgs != null) {
+      for (final arg in _boundArgs) {
+        calloc.free(arg);
+      }
     }
   }
 }
 
-class Row {
+final class Row {
   final Pointer<Statement> _statement;
   final Map<String, int> _columnIndices;
 
@@ -300,7 +330,7 @@ class Row {
   }
 }
 
-class Type {
+abstract final class Type {
   static const Integer = 1;
   static const Float = 2;
   static const Text = 3;
@@ -310,10 +340,12 @@ class Type {
 
 enum Convert { DynamicType, StaticType }
 
-class SQLiteException implements Exception {
+final class SQLiteException implements Exception {
   final String message;
 
   SQLiteException(this.message);
 
   String toString() => message;
 }
+
+final class PreparedStatement {}
