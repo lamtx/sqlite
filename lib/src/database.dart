@@ -37,9 +37,11 @@ final class Database {
     } else {
       // Even if "open" fails, sqlite3 will still create a database object. We
       // can just destroy it.
-      SQLiteException exception = _loadError(resultCode);
-      bindings.sqlite3_close_v2(_database);
-      throw exception;
+      try {
+        _throw(resultCode);
+      } finally {
+        bindings.sqlite3_close_v2(_database);
+      }
     }
   }
 
@@ -54,33 +56,39 @@ final class Database {
     if (resultCode == Errors.SQLITE_OK) {
       _open = false;
     } else {
-      throw _loadError(resultCode);
+      _throw(resultCode);
     }
   }
 
-  Pointer<Statement> prepare(String statement) {
+  void beginTransaction() {
+    Pointer<Utf8> statement = "BEGIN TRANSACTION;".toNativeUtf8();
+    bindings.sqlite3_exec(_database, statement, nullptr, nullptr, nullptr);
+    calloc.free(statement);
+  }
+
+  void endTransaction() {
+    Pointer<Utf8> statement = "END TRANSACTION;".toNativeUtf8();
+    bindings.sqlite3_exec(_database, statement, nullptr, nullptr, nullptr);
+    calloc.free(statement);
+  }
+
+  PreparedStatement prepare(String statement) {
     Pointer<Pointer<Statement>> statementOut = calloc();
     Pointer<Utf8> queryC = statement.toNativeUtf8();
     int resultCode = bindings.sqlite3_prepare_v2(
         _database, queryC, -1, statementOut, nullptr);
     calloc.free(queryC);
+    calloc.free(statementOut);
 
     if (resultCode != Errors.SQLITE_OK) {
-      final e = _loadError(resultCode);
-      calloc.free(statementOut);
-      calloc.free(queryC);
-      throw e;
+      _throw(resultCode);
     }
-    return statementOut.value;
+    return PreparedStatement._(this, statementOut.value);
   }
 
-  void freeStatement(Pointer<Statement> statement) {
-    bindings.sqlite3_finalize(statement);
-    calloc.free(statement);
-  }
-
-  int executeStatement(Pointer<Statement> statement,
+  int _executeStatement(Pointer<Statement> statement,
       [List<Object?>? args, bool returnsRowId = false]) {
+    bindings.sqlite3_reset(statement);
     final allocatedObjects = args == null ? null : _bindArgs(statement, args);
 
     int resultCode;
@@ -96,7 +104,7 @@ final class Database {
     }
 
     if (resultCode != Errors.SQLITE_DONE) {
-      throw _loadError(resultCode);
+      _throw(resultCode);
     }
     return insertedRowId;
   }
@@ -104,29 +112,15 @@ final class Database {
   /// Execute a query, discarding any returned rows.
   int execute(String query, [List<Object?>? args, bool returnsRowId = false]) {
     final statement = prepare(query);
-    final allocatedObjects = args == null ? null : _bindArgs(statement, args);
-
-    int resultCode;
-    do {
-      resultCode = bindings.sqlite3_step(statement);
-    } while (resultCode == Errors.SQLITE_ROW || resultCode == Errors.SQLITE_OK);
-
-    final insertedRowId =
-        returnsRowId ? bindings.sqlite3_last_insert_rowid(_database) : 0;
-
-    if (allocatedObjects != null) {
-      _freeArgs(statement, allocatedObjects);
+    try {
+      return statement.execute(args, returnsRowId);
+    } finally {
+      statement.release();
     }
-    freeStatement(statement);
-
-    if (resultCode != Errors.SQLITE_DONE) {
-      throw _loadError(resultCode);
-    }
-    return insertedRowId;
   }
 
   List<Pointer<NativeType>> _bindArgs(
-    Pointer<types.Statement> statement,
+    Pointer<Statement> statement,
     List<Object?> args,
   ) {
     final allocatedObjects = <Pointer>[];
@@ -168,11 +162,8 @@ final class Database {
 
   /// Evaluate a query and return the resulting rows as an iterable.
   Result query(String query, [List<Object?>? args]) {
-    final statement = prepare(query);
-
+    final statement = prepare(query)._pointer;
     final allocatedObjects = args == null ? null : _bindArgs(statement, args);
-
-    freeStatement(statement);
 
     Map<String, int> columnIndices = {};
     int columnCount = bindings.sqlite3_column_count(statement);
@@ -185,14 +176,14 @@ final class Database {
     return Result._(statement, columnIndices, allocatedObjects);
   }
 
-  SQLiteException _loadError([int? errorCode]) {
+  Never _throw([int? errorCode]) {
     String errorMessage = bindings.sqlite3_errmsg(_database).toDartString();
     if (errorCode == null) {
-      return SQLiteException(errorMessage);
+      throw SQLiteException(errorMessage);
     }
     String errorCodeExplanation =
         bindings.sqlite3_errstr(errorCode).toDartString();
-    return SQLiteException(
+    throw SQLiteException(
         "$errorMessage (Code $errorCode: $errorCodeExplanation)");
   }
 }
@@ -348,4 +339,17 @@ final class SQLiteException implements Exception {
   String toString() => message;
 }
 
-final class PreparedStatement {}
+final class PreparedStatement {
+  PreparedStatement._(this._db, this._pointer);
+
+  final Pointer<Statement> _pointer;
+  final Database _db;
+
+  void release() {
+    bindings.sqlite3_finalize(_pointer);
+  }
+
+  int execute([List<Object?>? args, bool returnsRowId = false]) {
+    return _db._executeStatement(_pointer, args, returnsRowId);
+  }
+}

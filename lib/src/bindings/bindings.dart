@@ -360,6 +360,13 @@ class _SQLiteBindings {
   /// error code and message may or may not be set.
   final Pointer<Utf8> Function(Pointer<Database> database) sqlite3_errmsg;
 
+  final int Function(
+      Pointer<Database> database,
+      Pointer<Utf8> statement,
+      Pointer<Void> callback,
+      Pointer<Void> argToCallback,
+      Pointer<Pointer<Utf8>> errorMessage) sqlite3_exec;
+
   _SQLiteBindings(this.sqlite)
       : sqlite3_open_v2 = sqlite
             .lookup<NativeFunction<sqlite3_open_v2_native_t>>("sqlite3_open_v2")
@@ -459,6 +466,9 @@ class _SQLiteBindings {
         sqlite3_column_bytes = sqlite
             .lookup<NativeFunction<sqlite3_column_bytes_native_t>>(
                 "sqlite3_column_bytes")
+            .asFunction(),
+        sqlite3_exec = sqlite
+            .lookup<NativeFunction<sqlite3_exec_native_t>>("sqlite3_exec")
             .asFunction();
 }
 

@@ -8,8 +8,8 @@
 library sqlite;
 
 export 'src/bindings/constants.dart';
-export 'src/bindings/types.dart' show Statement;
-export "src/database.dart" show Database, SQLiteException, Result, Row;
+export "src/database.dart"
+    show Database, SQLiteException, Result, Row, PreparedStatement;
 export 'src/ffi/open_dynamic_library.dart';
 export 'src/sqlite_config.dart';
 export 'src/sqlite_open_helper.dart';

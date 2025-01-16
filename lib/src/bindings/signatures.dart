@@ -96,3 +96,10 @@ typedef sqlite3_clear_bindings_native_t = Int32 Function(
 
 typedef sqlite3_column_bytes_native_t = Int32 Function(
     Pointer<Statement> statement, Int32 columnIndex);
+
+typedef sqlite3_exec_native_t = Int32 Function(
+    Pointer<Database> sqlite3,
+    Pointer<Utf8> sql,
+    Pointer<Void> callback,
+    Pointer<Void> argToCb,
+    Pointer<Pointer<Utf8>> errmsg);
