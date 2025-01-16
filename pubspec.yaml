@@ -8,8 +8,6 @@ environment:
 
 dependencies:
   ffi: ^2.0.0
-  sqlite3: ^2.6.0
-
 
 dev_dependencies:
   test: ^1.5.3
